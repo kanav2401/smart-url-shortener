@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from .database import Base, engine, get_db
 from .models import Click, URL
-from .schemas import AnalyticsResponse, URLCreate, URLResponse
+from .schemas import AnalyticsResponse, ClickResponse, URLCreate, URLResponse
 from .utils import generate_short_code
 
 
@@ -106,13 +106,24 @@ def get_analytics(
             detail="Short URL not found"
         )
 
-    return AnalyticsResponse(
-        short_code=url.short_code,
-        original_url=url.original_url,
-        total_clicks=url.clicks,
-        created_at=url.created_at,
-        expires_at=url.expires_at
+    clicks = (
+        db.query(Click)
+        .filter(Click.url_id == url.id)
+        .order_by(Click.clicked_at.desc())
+        .all()
     )
+
+    return AnalyticsResponse(
+    short_code=url.short_code,
+    original_url=url.original_url,
+    total_clicks=url.clicks,
+    created_at=url.created_at,
+    expires_at=url.expires_at,
+    clicks=[
+        ClickResponse.model_validate(click)
+        for click in clicks
+    ]
+)
 
 
 @app.get("/{short_code}")
@@ -155,4 +166,3 @@ def redirect_url(
         url=url.original_url,
         status_code=307
     )
-    
