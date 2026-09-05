@@ -61,6 +61,7 @@ async function shortenURL() {
         `;
 
         await loadAnalytics(data.short_code);
+        await loadURLs();
 
     } catch (error) {
         result.textContent = "Unable to connect to the server.";
@@ -193,6 +194,173 @@ async function loadAnalytics(shortCode) {
 }
 
 
+async function loadURLs() {
+    const urlsContent = document.getElementById("urlsContent");
+
+    urlsContent.innerHTML = `
+        <p>Loading URLs...</p>
+    `;
+
+    try {
+        const response = await fetch("/api/urls");
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            urlsContent.innerHTML = `
+                <p class="error">
+                    ${data.detail || "Unable to load URLs."}
+                </p>
+            `;
+            return;
+        }
+
+        if (data.length === 0) {
+            urlsContent.innerHTML = `
+                <p class="no-clicks">
+                    You haven't created any shortened URLs yet.
+                </p>
+            `;
+            return;
+        }
+
+        urlsContent.innerHTML = `
+            <div class="urls-table-container">
+
+                <table class="urls-table">
+
+                    <thead>
+                        <tr>
+                            <th>Short URL</th>
+                            <th>Original URL</th>
+                            <th>Clicks</th>
+                            <th>Created</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+
+                        ${data.map(url => `
+                            <tr>
+
+                                <td>
+                                    <a
+                                        href="${url.short_url}"
+                                        target="_blank"
+                                        class="short-link"
+                                    >
+                                        /${url.short_code}
+                                    </a>
+                                </td>
+
+                                <td class="original-cell">
+                                    <a
+                                        href="${url.original_url}"
+                                        target="_blank"
+                                    >
+                                        ${url.original_url}
+                                    </a>
+                                </td>
+
+                                <td>
+                                    <strong>${url.clicks}</strong>
+                                </td>
+
+                                <td>
+                                    ${formatDate(url.created_at)}
+                                </td>
+
+                                <td>
+
+                                    <div class="actions">
+
+                                        <button
+                                            class="action-button"
+                                            onclick="copyURL('${url.short_url}')"
+                                        >
+                                            Copy
+                                        </button>
+
+                                        <button
+                                            class="action-button"
+                                            onclick="loadAnalytics('${url.short_code}')"
+                                        >
+                                            Analytics
+                                        </button>
+
+                                        <button
+                                            class="action-button delete-button"
+                                            onclick="deleteURL('${url.short_code}')"
+                                        >
+                                            Delete
+                                        </button>
+
+                                    </div>
+
+                                </td>
+
+                            </tr>
+                        `).join("")}
+
+                    </tbody>
+
+                </table>
+
+            </div>
+        `;
+
+    } catch (error) {
+        urlsContent.innerHTML = `
+            <p class="error">
+                Unable to connect to the server.
+            </p>
+        `;
+    }
+}
+
+
+async function deleteURL(shortCode) {
+    const confirmed = confirm(
+        `Are you sure you want to delete /${shortCode}?`
+    );
+
+    if (!confirmed) {
+        return;
+    }
+
+    try {
+        const response = await fetch(
+            `/api/urls/${shortCode}`,
+            {
+                method: "DELETE"
+            }
+        );
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            alert(data.detail || "Unable to delete URL.");
+            return;
+        }
+
+        await loadURLs();
+
+        const analyticsContent =
+            document.getElementById("analyticsContent");
+
+        analyticsContent.innerHTML = `
+            <p class="no-clicks">
+                URL deleted successfully.
+            </p>
+        `;
+
+    } catch (error) {
+        alert("Unable to connect to the server.");
+    }
+}
+
+
 function copyURL(url) {
     navigator.clipboard.writeText(url);
 
@@ -215,3 +383,8 @@ function formatDate(dateString) {
 
     return new Date(dateString).toLocaleString();
 }
+
+
+document.addEventListener("DOMContentLoaded", () => {
+    loadURLs();
+});

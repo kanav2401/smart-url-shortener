@@ -85,7 +85,28 @@ def create_url(
         clicks=new_url.clicks
     )
 
+@app.get("/api/urls", response_model=list[URLResponse])
+def get_urls(
+    request: Request,
+    db: Session = Depends(get_db)
+):
+    urls = (
+        db.query(URL)
+        .order_by(URL.created_at.desc())
+        .all()
+    )
 
+    return [
+        URLResponse(
+            original_url=url.original_url,
+            short_code=url.short_code,
+            short_url=f"{request.base_url}{url.short_code}",
+            created_at=url.created_at,
+            expires_at=url.expires_at,
+            clicks=url.clicks
+        )
+        for url in urls
+    ]
 @app.get(
     "/api/urls/{short_code}/analytics",
     response_model=AnalyticsResponse
@@ -125,7 +146,34 @@ def get_analytics(
     ]
 )
 
+@app.delete("/api/urls/{short_code}")
+def delete_url(
+    short_code: str,
+    db: Session = Depends(get_db)
+):
+    url = (
+        db.query(URL)
+        .filter(URL.short_code == short_code)
+        .first()
+    )
 
+    if not url:
+        raise HTTPException(
+            status_code=404,
+            detail="Short URL not found"
+        )
+
+    db.query(Click).filter(
+        Click.url_id == url.id
+    ).delete()
+
+    db.delete(url)
+    db.commit()
+
+    return {
+        "message": "Short URL deleted successfully",
+        "short_code": short_code
+    }
 @app.get("/{short_code}")
 def redirect_url(
     short_code: str,

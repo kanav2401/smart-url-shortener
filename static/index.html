@@ -53,6 +53,30 @@
 
     </div>
 
+    <div class="card urls-card">
+
+        <div class="section-header">
+            <div>
+                <h2>My URLs</h2>
+                <p class="section-description">
+                    Manage your shortened URLs.
+                </p>
+            </div>
+
+            <button
+                class="refresh-button"
+                onclick="loadURLs()"
+            >
+                Refresh
+            </button>
+        </div>
+
+        <div id="urlsContent">
+            <p>Loading URLs...</p>
+        </div>
+
+    </div>
+
 </div>
 
 <script src="/static/app.js"></script>
