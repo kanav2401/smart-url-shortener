@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart URL Shortener</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+
+<body>
+
+<div class="container">
+
+    <h1>Smart URL Shortener</h1>
+
+    <p class="subtitle">
+        Shorten URLs and track their performance.
+    </p>
+
+    <div class="card">
+
+        <label for="url">Long URL</label>
+
+        <input
+            id="url"
+            type="url"
+            placeholder="https://example.com/very-long-url"
+        >
+
+        <label for="custom">Custom Code (Optional)</label>
+
+        <input
+            id="custom"
+            type="text"
+            placeholder="my-link"
+        >
+
+        <button onclick="shortenURL()">
+            Shorten URL
+        </button>
+
+        <div id="result"></div>
+
+    </div>
+
+</div>
+
+<script src="/static/app.js"></script>
+
+</body>
+</html>
