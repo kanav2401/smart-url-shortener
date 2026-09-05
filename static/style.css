@@ -6,12 +6,13 @@ body {
     margin: 0;
     font-family: Arial, sans-serif;
     background: #f4f4f5;
+    color: #111827;
 }
 
 .container {
     width: 90%;
-    max-width: 700px;
-    margin: 80px auto;
+    max-width: 900px;
+    margin: 60px auto;
 }
 
 h1 {
@@ -30,6 +31,20 @@ h1 {
     padding: 30px;
     border-radius: 12px;
     box-shadow: 0 5px 20px rgba(0, 0, 0, 0.08);
+}
+
+.analytics-card {
+    margin-top: 30px;
+}
+
+.analytics-card h2 {
+    margin-top: 0;
+    margin-bottom: 25px;
+}
+
+.analytics-card h3 {
+    margin-top: 30px;
+    margin-bottom: 15px;
 }
 
 label {
@@ -73,4 +88,127 @@ button:hover {
 
 #result a {
     font-weight: bold;
+}
+
+.short-url {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.short-url a {
+    flex: 1;
+}
+
+.copy-button {
+    width: auto;
+    margin: 0;
+    padding: 8px 14px;
+}
+
+.analytics-button {
+    width: auto;
+    margin-top: 10px;
+    padding: 10px 18px;
+}
+
+.analytics-summary {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 15px;
+}
+
+.stat {
+    padding: 18px;
+    background: #f3f4f6;
+    border-radius: 8px;
+}
+
+.stat-label {
+    display: block;
+    color: #6b7280;
+    font-size: 13px;
+    margin-bottom: 7px;
+}
+
+.stat strong {
+    display: block;
+    word-break: break-word;
+}
+
+.original-url {
+    margin-top: 20px;
+    padding: 18px;
+    background: #f3f4f6;
+    border-radius: 8px;
+}
+
+.original-url a {
+    display: block;
+    word-break: break-all;
+    margin-top: 5px;
+}
+
+.click-table-container {
+    width: 100%;
+    overflow-x: auto;
+}
+
+.click-table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 700px;
+}
+
+.click-table th,
+.click-table td {
+    padding: 12px;
+    text-align: left;
+    border-bottom: 1px solid #e5e7eb;
+    vertical-align: top;
+}
+
+.click-table th {
+    background: #f3f4f6;
+}
+
+.user-agent {
+    max-width: 250px;
+    word-break: break-word;
+    font-size: 13px;
+}
+
+.no-clicks {
+    padding: 20px;
+    background: #f3f4f6;
+    border-radius: 8px;
+    color: #6b7280;
+}
+
+.error {
+    color: #dc2626;
+}
+
+@media (max-width: 600px) {
+    .container {
+        width: 95%;
+        margin: 30px auto;
+    }
+
+    .card {
+        padding: 20px;
+    }
+
+    .analytics-summary {
+        grid-template-columns: 1fr;
+    }
+
+    .short-url {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .copy-button {
+        width: 100%;
+    }
 }
