@@ -1,10 +1,18 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
     <title>Smart URL Shortener</title>
-    <link rel="stylesheet" href="/static/style.css">
+
+    <link
+        rel="stylesheet"
+        href="/static/style.css"
+    >
 </head>
 
 <body>
@@ -19,7 +27,9 @@
 
     <div class="card">
 
-        <label for="url">Long URL</label>
+        <label for="url">
+            Long URL
+        </label>
 
         <input
             id="url"
@@ -27,21 +37,25 @@
             placeholder="https://example.com/very-long-url"
         >
 
-        <label for="custom">Custom Code (Optional)</label>
+        <label for="custom">
+            Custom Code (Optional)
+        </label>
 
         <input
             id="custom"
             type="text"
             placeholder="my-link"
         >
-            <label for="expiration">Expiration</label>
 
-<select id="expiration">
-    <option value="">Never</option>
-    <option value="1">1 Day</option>
-    <option value="7">7 Days</option>
-    <option value="30">30 Days</option>
-</select>
+        <label for="expiration">
+            Expiration Date (Optional)
+        </label>
+
+        <input
+            id="expiration"
+            type="datetime-local"
+        >
+
         <button onclick="shortenURL()">
             Shorten URL
         </button>
@@ -50,37 +64,21 @@
 
     </div>
 
-    <div id="analytics" class="card analytics-card">
 
-        <h2>URL Analytics</h2>
+    <div class="dashboard">
 
-        <div id="analyticsContent">
-            <p>Create a shortened URL to view its analytics.</p>
-        </div>
+        <h2>Your URLs</h2>
 
-    </div>
+        <input
+            id="search"
+            type="text"
+            placeholder="Search by URL or short code..."
+            oninput="searchURLs()"
+        >
 
-    <div class="card urls-card">
+        <div id="url-list"></div>
 
-        <div class="section-header">
-            <div>
-                <h2>My URLs</h2>
-                <p class="section-description">
-                    Manage your shortened URLs.
-                </p>
-            </div>
-
-            <button
-                class="refresh-button"
-                onclick="loadURLs()"
-            >
-                Refresh
-            </button>
-        </div>
-
-        <div id="urlsContent">
-            <p>Loading URLs...</p>
-        </div>
+        <div id="pagination"></div>
 
     </div>
 
@@ -89,4 +87,5 @@
 <script src="/static/app.js"></script>
 
 </body>
+
 </html>

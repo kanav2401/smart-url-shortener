@@ -288,3 +288,80 @@ select {
     font-size: 16px;
     background: white;
 }
+
+.dashboard {
+    margin-top: 40px;
+}
+
+.dashboard h2 {
+    margin-bottom: 20px;
+}
+
+#search {
+    margin-bottom: 20px;
+}
+
+.url-item {
+    background: white;
+    padding: 20px;
+    margin-bottom: 15px;
+    border-radius: 10px;
+    box-shadow: 0 3px 12px rgba(0, 0, 0, 0.06);
+}
+
+.url-info strong {
+    font-size: 18px;
+}
+
+.url-info p {
+    color: #666;
+    word-break: break-all;
+}
+
+.url-info span {
+    display: inline-block;
+    margin-right: 20px;
+    font-size: 14px;
+    color: #555;
+}
+
+.url-actions {
+    margin-top: 15px;
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.url-actions button {
+    width: auto;
+    margin-top: 0;
+    padding: 8px 14px;
+}
+
+.url-actions a {
+    padding: 8px 14px;
+    text-decoration: none;
+    background: #e5e7eb;
+    color: #111827;
+    border-radius: 6px;
+}
+
+#pagination {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 25px;
+}
+
+#pagination button {
+    width: auto;
+    margin-top: 0;
+    padding: 8px 14px;
+}
+
+.empty {
+    background: white;
+    padding: 25px;
+    text-align: center;
+    border-radius: 10px;
+}

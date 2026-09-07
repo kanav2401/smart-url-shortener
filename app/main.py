@@ -89,27 +89,64 @@ def create_url(
 @app.get("/api/urls")
 def get_urls(
     request: Request,
+    page: int = 1,
+    limit: int = 10,
+    search: str | None = None,
     db: Session = Depends(get_db)
 ):
+    if page < 1:
+        raise HTTPException(
+            status_code=400,
+            detail="Page must be greater than 0"
+        )
+
+    if limit < 1 or limit > 100:
+        raise HTTPException(
+            status_code=400,
+            detail="Limit must be between 1 and 100"
+        )
+
+    query = db.query(URL)
+
+    if search:
+        search_term = f"%{search.strip()}%"
+
+        query = query.filter(
+            URL.original_url.ilike(search_term)
+            | URL.short_code.ilike(search_term)
+        )
+
+    total = query.count()
+
+    total_pages = (total + limit - 1) // limit
+
+    offset = (page - 1) * limit
+
     urls = (
-        db.query(URL)
+        query
         .order_by(URL.created_at.desc())
+        .offset(offset)
+        .limit(limit)
         .all()
     )
 
-    return [
-        {
-            "original_url": url.original_url,
-            "short_code": url.short_code,
-            "short_url": f"{request.base_url}{url.short_code}",
-            "created_at": url.created_at,
-            "expires_at": url.expires_at,
-            "clicks": url.clicks
-        }
-        for url in urls
-    ]
-
-
+    return {
+        "page": page,
+        "limit": limit,
+        "total": total,
+        "total_pages": total_pages,
+        "results": [
+            {
+                "original_url": url.original_url,
+                "short_code": url.short_code,
+                "short_url": f"{request.base_url}{url.short_code}",
+                "created_at": url.created_at,
+                "expires_at": url.expires_at,
+                "clicks": url.clicks
+            }
+            for url in urls
+        ]
+    }
 @app.get(
     "/api/urls/{short_code}/analytics",
     response_model=AnalyticsResponse

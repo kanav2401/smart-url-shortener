@@ -6,401 +6,257 @@ async function shortenURL() {
 
     const original_url = urlInput.value.trim();
     const custom_code = customInput.value.trim();
-    const expirationDays = expirationInput.value;
+    const expires_at = expirationInput.value;
 
     if (!original_url) {
         result.textContent = "Please enter a URL.";
         return;
     }
 
-    let expires_at = null;
+    const response = await fetch("/api/urls", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+            original_url: original_url,
+            custom_code: custom_code || null,
+            expires_at: expires_at
+                ? new Date(expires_at).toISOString()
+                : null
+        })
+    });
 
-    if (expirationDays) {
-        const expirationDate = new Date();
+    const data = await response.json();
 
-        expirationDate.setDate(
-            expirationDate.getDate() + Number(expirationDays)
-        );
-
-        expires_at = expirationDate.toISOString();
+    if (!response.ok) {
+        result.textContent = data.detail || "Something went wrong.";
+        return;
     }
 
-    result.textContent = "Creating short URL...";
+    result.innerHTML = `
+        <p>Your shortened URL:</p>
 
-    try {
-        const response = await fetch("/api/urls", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify({
-                original_url: original_url,
-                custom_code: custom_code || null,
-                expires_at: expires_at
-            })
-        });
+        <a href="${data.short_url}" target="_blank">
+            ${data.short_url}
+        </a>
 
-        const data = await response.json();
+        <p>
+            Clicks: ${data.clicks}
+        </p>
 
-        if (!response.ok) {
-            result.textContent = data.detail || "Something went wrong.";
-            return;
-        }
+        <p>
+            Expires:
+            ${data.expires_at
+                ? new Date(data.expires_at).toLocaleString()
+                : "Never"}
+        </p>
 
-        result.innerHTML = `
-            <p>Your shortened URL:</p>
+        <button onclick="copyURL('${data.short_url}')">
+            Copy URL
+        </button>
 
-            <div class="short-url">
-                <a href="${data.short_url}" target="_blank">
-                    ${data.short_url}
-                </a>
+        <br><br>
 
-                <button
-                    class="copy-button"
-                    onclick="copyURL('${data.short_url}')"
-                >
+        <a href="/api/urls/${data.short_code}/analytics"
+           target="_blank">
+            View Analytics
+        </a>
+    `;
+
+    loadURLs();
+}
+
+
+async function loadURLs(page = 1) {
+    const searchInput = document.getElementById("search");
+
+    const search = searchInput
+        ? searchInput.value.trim()
+        : "";
+
+    const params = new URLSearchParams({
+        page: page,
+        limit: 5
+    });
+
+    if (search) {
+        params.append("search", search);
+    }
+
+    const response = await fetch(`/api/urls?${params.toString()}`);
+
+    const data = await response.json();
+
+    if (!response.ok) {
+        return;
+    }
+
+    displayURLs(data);
+}
+
+
+function displayURLs(data) {
+    const container = document.getElementById("url-list");
+
+    if (!container) {
+        return;
+    }
+
+    if (data.results.length === 0) {
+        container.innerHTML = `
+            <p class="empty">
+                No URLs found.
+            </p>
+        `;
+        updatePagination(data);
+        return;
+    }
+
+    container.innerHTML = data.results.map(url => `
+        <div class="url-item">
+
+            <div class="url-info">
+
+                <strong>
+                    <a href="${url.short_url}" target="_blank">
+                        ${url.short_code}
+                    </a>
+                </strong>
+
+                <p>
+                    ${url.original_url}
+                </p>
+
+                <span>
+                    Clicks: ${url.clicks}
+                </span>
+
+                <span>
+                    Expires:
+                    ${url.expires_at
+                        ? new Date(url.expires_at).toLocaleString()
+                        : "Never"}
+                </span>
+
+            </div>
+
+            <div class="url-actions">
+
+                <button onclick="copyURL('${url.short_url}')">
                     Copy
                 </button>
+
+                <a
+                    href="/api/urls/${url.short_code}/analytics"
+                    target="_blank"
+                >
+                    Analytics
+                </a>
+
+                <button onclick="deleteURL('${url.short_code}')">
+                    Delete
+                </button>
+
             </div>
 
-            <p>
-                Clicks: <strong>${data.clicks}</strong>
-            </p>
+        </div>
+    `).join("");
 
-            <p>
-                Expires:
-                <strong>
-                    ${data.expires_at
-                        ? formatDate(data.expires_at)
-                        : "Never"}
-                </strong>
-            </p>
+    updatePagination(data);
+}
 
-            <button
-                class="analytics-button"
-                onclick="loadAnalytics('${data.short_code}')"
-            >
-                View Analytics
+
+function updatePagination(data) {
+    const pagination = document.getElementById("pagination");
+
+    if (!pagination) {
+        return;
+    }
+
+    if (data.total_pages <= 1) {
+        pagination.innerHTML = "";
+        return;
+    }
+
+    let buttons = "";
+
+    if (data.page > 1) {
+        buttons += `
+            <button onclick="loadURLs(${data.page - 1})">
+                Previous
             </button>
         `;
-
-        await loadAnalytics(data.short_code);
-        await loadURLs();
-
-    } catch (error) {
-        console.error(error);
-        result.textContent = "Unable to connect to the server.";
     }
-}
 
-
-async function loadAnalytics(shortCode) {
-    const analyticsContent = document.getElementById("analyticsContent");
-
-    analyticsContent.innerHTML = `
-        <p>Loading analytics...</p>
-    `;
-
-    try {
-        const response = await fetch(
-            `/api/urls/${shortCode}/analytics`
-        );
-
-        const data = await response.json();
-
-        if (!response.ok) {
-            analyticsContent.innerHTML = `
-                <p class="error">
-                    ${data.detail || "Unable to load analytics."}
-                </p>
-            `;
-            return;
-        }
-
-        let clickHistory = "";
-
-        if (!data.clicks || data.clicks.length === 0) {
-            clickHistory = `
-                <p class="no-clicks">
-                    No clicks recorded yet.
-                </p>
-            `;
-        } else {
-            clickHistory = `
-                <div class="click-table-container">
-                    <table class="click-table">
-                        <thead>
-                            <tr>
-                                <th>Time</th>
-                                <th>IP Address</th>
-                                <th>Referrer</th>
-                                <th>User Agent</th>
-                            </tr>
-                        </thead>
-
-                        <tbody>
-                            ${data.clicks.map(click => `
-                                <tr>
-                                    <td>${formatDate(click.clicked_at)}</td>
-                                    <td>${click.ip_address || "Unknown"}</td>
-                                    <td>${click.referrer || "Direct"}</td>
-                                    <td class="user-agent">
-                                        ${click.user_agent || "Unknown"}
-                                    </td>
-                                </tr>
-                            `).join("")}
-                        </tbody>
-                    </table>
-                </div>
-            `;
-        }
-
-        analyticsContent.innerHTML = `
-            <div class="analytics-summary">
-
-                <div class="stat">
-                    <span class="stat-label">Short Code</span>
-                    <strong>${data.short_code}</strong>
-                </div>
-
-                <div class="stat">
-                    <span class="stat-label">Total Clicks</span>
-                    <strong>${data.total_clicks}</strong>
-                </div>
-
-                <div class="stat">
-                    <span class="stat-label">Created</span>
-                    <strong>${formatDate(data.created_at)}</strong>
-                </div>
-
-                <div class="stat">
-                    <span class="stat-label">Expires</span>
-                    <strong>
-                        ${data.expires_at
-                            ? formatDate(data.expires_at)
-                            : "Never"}
-                    </strong>
-                </div>
-
-            </div>
-
-            <div class="original-url">
-                <span class="stat-label">Original URL</span>
-
-                <a href="${data.original_url}" target="_blank">
-                    ${data.original_url}
-                </a>
-            </div>
-
-            <h3>Click History</h3>
-
-            ${clickHistory}
-        `;
-
-    } catch (error) {
-        console.error(error);
-
-        analyticsContent.innerHTML = `
-            <p class="error">
-                Unable to connect to the server.
-            </p>
+    for (let page = 1; page <= data.total_pages; page++) {
+        buttons += `
+            <button onclick="loadURLs(${page})">
+                ${page}
+            </button>
         `;
     }
-}
 
-
-async function loadURLs() {
-    const urlsContent = document.getElementById("urlsContent");
-
-    urlsContent.innerHTML = `
-        <p>Loading URLs...</p>
-    `;
-
-    try {
-        const response = await fetch("/api/urls");
-
-        const data = await response.json();
-
-        if (!response.ok) {
-            urlsContent.innerHTML = `
-                <p class="error">
-                    ${data.detail || "Unable to load URLs."}
-                </p>
-            `;
-            return;
-        }
-
-        if (data.length === 0) {
-            urlsContent.innerHTML = `
-                <p class="no-clicks">
-                    You haven't created any shortened URLs yet.
-                </p>
-            `;
-            return;
-        }
-
-        urlsContent.innerHTML = `
-            <div class="urls-table-container">
-                <table class="urls-table">
-
-                    <thead>
-                        <tr>
-                            <th>Short URL</th>
-                            <th>Original URL</th>
-                            <th>Clicks</th>
-                            <th>Created</th>
-                            <th>Expires</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-
-                    <tbody>
-                        ${data.map(url => `
-                            <tr>
-
-                                <td>
-                                    <a
-                                        href="${url.short_url}"
-                                        target="_blank"
-                                        class="short-link"
-                                    >
-                                        /${url.short_code}
-                                    </a>
-                                </td>
-
-                                <td class="original-cell">
-                                    <a
-                                        href="${url.original_url}"
-                                        target="_blank"
-                                    >
-                                        ${url.original_url}
-                                    </a>
-                                </td>
-
-                                <td>
-                                    <strong>${url.clicks}</strong>
-                                </td>
-
-                                <td>
-                                    ${formatDate(url.created_at)}
-                                </td>
-
-                                <td>
-                                    ${url.expires_at
-                                        ? formatDate(url.expires_at)
-                                        : "Never"}
-                                </td>
-
-                                <td>
-                                    <div class="actions">
-
-                                        <button
-                                            class="action-button"
-                                            onclick="copyURL('${url.short_url}')"
-                                        >
-                                            Copy
-                                        </button>
-
-                                        <button
-                                            class="action-button"
-                                            onclick="loadAnalytics('${url.short_code}')"
-                                        >
-                                            Analytics
-                                        </button>
-
-                                        <button
-                                            class="action-button delete-button"
-                                            onclick="deleteURL('${url.short_code}')"
-                                        >
-                                            Delete
-                                        </button>
-
-                                    </div>
-                                </td>
-
-                            </tr>
-                        `).join("")}
-                    </tbody>
-
-                </table>
-            </div>
-        `;
-
-    } catch (error) {
-        console.error(error);
-
-        urlsContent.innerHTML = `
-            <p class="error">
-                Unable to connect to the server.
-            </p>
+    if (data.page < data.total_pages) {
+        buttons += `
+            <button onclick="loadURLs(${data.page + 1})">
+                Next
+            </button>
         `;
     }
+
+    pagination.innerHTML = buttons;
 }
 
 
 async function deleteURL(shortCode) {
     const confirmed = confirm(
-        `Are you sure you want to delete /${shortCode}?`
+        "Are you sure you want to delete this URL?"
     );
 
     if (!confirmed) {
         return;
     }
 
-    try {
-        const response = await fetch(
-            `/api/urls/${shortCode}`,
-            {
-                method: "DELETE"
-            }
-        );
-
-        const data = await response.json();
-
-        if (!response.ok) {
-            alert(data.detail || "Unable to delete URL.");
-            return;
+    const response = await fetch(
+        `/api/urls/${shortCode}`,
+        {
+            method: "DELETE"
         }
+    );
 
-        await loadURLs();
+    const data = await response.json();
 
-        document.getElementById("analyticsContent").innerHTML = `
-            <p class="no-clicks">
-                URL deleted successfully.
-            </p>
-        `;
-
-    } catch (error) {
-        console.error(error);
-        alert("Unable to connect to the server.");
+    if (!response.ok) {
+        alert(data.detail || "Failed to delete URL.");
+        return;
     }
+
+    alert("URL deleted successfully.");
+
+    loadURLs();
 }
 
 
 function copyURL(url) {
     navigator.clipboard.writeText(url);
 
-    const buttons = document.querySelectorAll(".copy-button");
-
-    buttons.forEach(button => {
-        button.textContent = "Copied!";
-
-        setTimeout(() => {
-            button.textContent = "Copy";
-        }, 1500);
-    });
+    alert("URL copied!");
 }
 
 
-function formatDate(dateString) {
-    if (!dateString) {
-        return "N/A";
-    }
+let searchTimeout;
 
-    return new Date(dateString).toLocaleString();
+
+function searchURLs() {
+    clearTimeout(searchTimeout);
+
+    searchTimeout = setTimeout(() => {
+        loadURLs(1);
+    }, 300);
 }
 
 
-document.addEventListener("DOMContentLoaded", () => {
+window.addEventListener("DOMContentLoaded", () => {
     loadURLs();
 });
