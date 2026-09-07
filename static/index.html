@@ -34,7 +34,14 @@
             type="text"
             placeholder="my-link"
         >
+            <label for="expiration">Expiration</label>
 
+<select id="expiration">
+    <option value="">Never</option>
+    <option value="1">1 Day</option>
+    <option value="7">7 Days</option>
+    <option value="30">30 Days</option>
+</select>
         <button onclick="shortenURL()">
             Shorten URL
         </button>

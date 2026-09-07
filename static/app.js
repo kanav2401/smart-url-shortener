@@ -1,14 +1,28 @@
 async function shortenURL() {
     const urlInput = document.getElementById("url");
     const customInput = document.getElementById("custom");
+    const expirationInput = document.getElementById("expiration");
     const result = document.getElementById("result");
 
     const original_url = urlInput.value.trim();
     const custom_code = customInput.value.trim();
+    const expirationDays = expirationInput.value;
 
     if (!original_url) {
         result.textContent = "Please enter a URL.";
         return;
+    }
+
+    let expires_at = null;
+
+    if (expirationDays) {
+        const expirationDate = new Date();
+
+        expirationDate.setDate(
+            expirationDate.getDate() + Number(expirationDays)
+        );
+
+        expires_at = expirationDate.toISOString();
     }
 
     result.textContent = "Creating short URL...";
@@ -21,7 +35,8 @@ async function shortenURL() {
             },
             body: JSON.stringify({
                 original_url: original_url,
-                custom_code: custom_code || null
+                custom_code: custom_code || null,
+                expires_at: expires_at
             })
         });
 
@@ -52,6 +67,15 @@ async function shortenURL() {
                 Clicks: <strong>${data.clicks}</strong>
             </p>
 
+            <p>
+                Expires:
+                <strong>
+                    ${data.expires_at
+                        ? formatDate(data.expires_at)
+                        : "Never"}
+                </strong>
+            </p>
+
             <button
                 class="analytics-button"
                 onclick="loadAnalytics('${data.short_code}')"
@@ -64,6 +88,7 @@ async function shortenURL() {
         await loadURLs();
 
     } catch (error) {
+        console.error(error);
         result.textContent = "Unable to connect to the server.";
     }
 }
@@ -94,7 +119,7 @@ async function loadAnalytics(shortCode) {
 
         let clickHistory = "";
 
-        if (data.clicks.length === 0) {
+        if (!data.clicks || data.clicks.length === 0) {
             clickHistory = `
                 <p class="no-clicks">
                     No clicks recorded yet.
@@ -116,18 +141,9 @@ async function loadAnalytics(shortCode) {
                         <tbody>
                             ${data.clicks.map(click => `
                                 <tr>
-                                    <td>
-                                        ${formatDate(click.clicked_at)}
-                                    </td>
-
-                                    <td>
-                                        ${click.ip_address || "Unknown"}
-                                    </td>
-
-                                    <td>
-                                        ${click.referrer || "Direct"}
-                                    </td>
-
+                                    <td>${formatDate(click.clicked_at)}</td>
+                                    <td>${click.ip_address || "Unknown"}</td>
+                                    <td>${click.referrer || "Direct"}</td>
                                     <td class="user-agent">
                                         ${click.user_agent || "Unknown"}
                                     </td>
@@ -171,10 +187,7 @@ async function loadAnalytics(shortCode) {
             <div class="original-url">
                 <span class="stat-label">Original URL</span>
 
-                <a
-                    href="${data.original_url}"
-                    target="_blank"
-                >
+                <a href="${data.original_url}" target="_blank">
                     ${data.original_url}
                 </a>
             </div>
@@ -185,6 +198,8 @@ async function loadAnalytics(shortCode) {
         `;
 
     } catch (error) {
+        console.error(error);
+
         analyticsContent.innerHTML = `
             <p class="error">
                 Unable to connect to the server.
@@ -226,7 +241,6 @@ async function loadURLs() {
 
         urlsContent.innerHTML = `
             <div class="urls-table-container">
-
                 <table class="urls-table">
 
                     <thead>
@@ -235,12 +249,12 @@ async function loadURLs() {
                             <th>Original URL</th>
                             <th>Clicks</th>
                             <th>Created</th>
+                            <th>Expires</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
 
                     <tbody>
-
                         ${data.map(url => `
                             <tr>
 
@@ -272,7 +286,12 @@ async function loadURLs() {
                                 </td>
 
                                 <td>
+                                    ${url.expires_at
+                                        ? formatDate(url.expires_at)
+                                        : "Never"}
+                                </td>
 
+                                <td>
                                     <div class="actions">
 
                                         <button
@@ -297,20 +316,19 @@ async function loadURLs() {
                                         </button>
 
                                     </div>
-
                                 </td>
 
                             </tr>
                         `).join("")}
-
                     </tbody>
 
                 </table>
-
             </div>
         `;
 
     } catch (error) {
+        console.error(error);
+
         urlsContent.innerHTML = `
             <p class="error">
                 Unable to connect to the server.
@@ -346,16 +364,14 @@ async function deleteURL(shortCode) {
 
         await loadURLs();
 
-        const analyticsContent =
-            document.getElementById("analyticsContent");
-
-        analyticsContent.innerHTML = `
+        document.getElementById("analyticsContent").innerHTML = `
             <p class="no-clicks">
                 URL deleted successfully.
             </p>
         `;
 
     } catch (error) {
+        console.error(error);
         alert("Unable to connect to the server.");
     }
 }

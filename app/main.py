@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from .database import Base, engine, get_db
 from .models import Click, URL
-from .schemas import AnalyticsResponse, ClickResponse, URLCreate, URLResponse
+from .schemas import AnalyticsResponse, URLCreate, URLResponse
 from .utils import generate_short_code
 
 
@@ -85,7 +85,8 @@ def create_url(
         clicks=new_url.clicks
     )
 
-@app.get("/api/urls", response_model=list[URLResponse])
+
+@app.get("/api/urls")
 def get_urls(
     request: Request,
     db: Session = Depends(get_db)
@@ -97,16 +98,18 @@ def get_urls(
     )
 
     return [
-        URLResponse(
-            original_url=url.original_url,
-            short_code=url.short_code,
-            short_url=f"{request.base_url}{url.short_code}",
-            created_at=url.created_at,
-            expires_at=url.expires_at,
-            clicks=url.clicks
-        )
+        {
+            "original_url": url.original_url,
+            "short_code": url.short_code,
+            "short_url": f"{request.base_url}{url.short_code}",
+            "created_at": url.created_at,
+            "expires_at": url.expires_at,
+            "clicks": url.clicks
+        }
         for url in urls
     ]
+
+
 @app.get(
     "/api/urls/{short_code}/analytics",
     response_model=AnalyticsResponse
@@ -127,53 +130,15 @@ def get_analytics(
             detail="Short URL not found"
         )
 
-    clicks = (
-        db.query(Click)
-        .filter(Click.url_id == url.id)
-        .order_by(Click.clicked_at.desc())
-        .all()
-    )
-
     return AnalyticsResponse(
-    short_code=url.short_code,
-    original_url=url.original_url,
-    total_clicks=url.clicks,
-    created_at=url.created_at,
-    expires_at=url.expires_at,
-    clicks=[
-        ClickResponse.model_validate(click)
-        for click in clicks
-    ]
-)
-
-@app.delete("/api/urls/{short_code}")
-def delete_url(
-    short_code: str,
-    db: Session = Depends(get_db)
-):
-    url = (
-        db.query(URL)
-        .filter(URL.short_code == short_code)
-        .first()
+        short_code=url.short_code,
+        original_url=url.original_url,
+        total_clicks=url.clicks,
+        created_at=url.created_at,
+        expires_at=url.expires_at
     )
 
-    if not url:
-        raise HTTPException(
-            status_code=404,
-            detail="Short URL not found"
-        )
 
-    db.query(Click).filter(
-        Click.url_id == url.id
-    ).delete()
-
-    db.delete(url)
-    db.commit()
-
-    return {
-        "message": "Short URL deleted successfully",
-        "short_code": short_code
-    }
 @app.get("/{short_code}")
 def redirect_url(
     short_code: str,
