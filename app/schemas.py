@@ -18,9 +18,18 @@ class URLResponse(BaseModel):
     clicks: int
 
 
+class ClickResponse(BaseModel):
+    id: int
+    ip_address: str | None
+    user_agent: str | None
+    referrer: str | None
+    clicked_at: datetime
+
+
 class AnalyticsResponse(BaseModel):
     short_code: str
     original_url: str
     total_clicks: int
     created_at: datetime
     expires_at: datetime | None
+    clicks: list[ClickResponse]

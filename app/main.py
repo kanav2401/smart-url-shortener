@@ -167,6 +167,46 @@ def get_analytics(
             detail="Short URL not found"
         )
 
+    clicks = (
+        db.query(Click)
+        .filter(Click.url_id == url.id)
+        .order_by(Click.clicked_at.desc())
+        .all()
+    )
+
+    return AnalyticsResponse(
+        short_code=url.short_code,
+        original_url=url.original_url,
+        total_clicks=url.clicks,
+        created_at=url.created_at,
+        expires_at=url.expires_at,
+        clicks=[
+            {
+                "id": click.id,
+                "ip_address": click.ip_address,
+                "user_agent": click.user_agent,
+                "referrer": click.referrer,
+                "clicked_at": click.clicked_at
+            }
+            for click in clicks
+        ]
+    )
+def get_analytics(
+    short_code: str,
+    db: Session = Depends(get_db)
+):
+    url = (
+        db.query(URL)
+        .filter(URL.short_code == short_code)
+        .first()
+    )
+
+    if not url:
+        raise HTTPException(
+            status_code=404,
+            detail="Short URL not found"
+        )
+
     return AnalyticsResponse(
         short_code=url.short_code,
         original_url=url.original_url,
