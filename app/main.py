@@ -33,6 +33,11 @@ def home():
     return FileResponse("static/index.html")
 
 
+@app.get("/analytics/{short_code}")
+def analytics_page(short_code: str):
+    return FileResponse("static/analytics.html")
+
+
 @app.post("/api/urls", response_model=URLResponse)
 def create_url(
     data: URLCreate,
@@ -117,7 +122,6 @@ def get_urls(
         )
 
     total = query.count()
-
     total_pages = (total + limit - 1) // limit
 
     offset = (page - 1) * limit
@@ -147,6 +151,8 @@ def get_urls(
             for url in urls
         ]
     }
+
+
 @app.get(
     "/api/urls/{short_code}/analytics",
     response_model=AnalyticsResponse
@@ -191,7 +197,10 @@ def get_analytics(
             for click in clicks
         ]
     )
-def get_analytics(
+
+
+@app.delete("/api/urls/{short_code}")
+def delete_url(
     short_code: str,
     db: Session = Depends(get_db)
 ):
@@ -207,13 +216,17 @@ def get_analytics(
             detail="Short URL not found"
         )
 
-    return AnalyticsResponse(
-        short_code=url.short_code,
-        original_url=url.original_url,
-        total_clicks=url.clicks,
-        created_at=url.created_at,
-        expires_at=url.expires_at
-    )
+    db.query(Click).filter(
+        Click.url_id == url.id
+    ).delete()
+
+    db.delete(url)
+    db.commit()
+
+    return {
+        "message": "Short URL deleted successfully",
+        "short_code": short_code
+    }
 
 
 @app.get("/{short_code}")

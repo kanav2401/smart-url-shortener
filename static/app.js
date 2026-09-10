@@ -6,65 +6,82 @@ async function shortenURL() {
 
     const original_url = urlInput.value.trim();
     const custom_code = customInput.value.trim();
-    const expires_at = expirationInput.value;
+    const expires_at = expirationInput
+        ? expirationInput.value
+        : "";
 
     if (!original_url) {
         result.textContent = "Please enter a URL.";
         return;
     }
 
-    const response = await fetch("/api/urls", {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-            original_url: original_url,
-            custom_code: custom_code || null,
-            expires_at: expires_at
-                ? new Date(expires_at).toISOString()
-                : null
-        })
-    });
+    try {
+        const response = await fetch("/api/urls", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                original_url: original_url,
+                custom_code: custom_code || null,
+                expires_at: expires_at
+                    ? new Date(expires_at).toISOString()
+                    : null
+            })
+        });
 
-    const data = await response.json();
+        const data = await response.json();
 
-    if (!response.ok) {
-        result.textContent = data.detail || "Something went wrong.";
-        return;
+        if (!response.ok) {
+            result.textContent =
+                data.detail || "Something went wrong.";
+            return;
+        }
+
+        result.innerHTML = `
+            <p>Your shortened URL:</p>
+
+            <a href="${data.short_url}" target="_blank">
+                ${data.short_url}
+            </a>
+
+            <p>
+                Clicks: ${data.clicks}
+            </p>
+
+            <p>
+                Expires:
+                ${
+                    data.expires_at
+                        ? new Date(data.expires_at).toLocaleString()
+                        : "Never"
+                }
+            </p>
+
+            <button onclick="copyURL('${data.short_url}')">
+                Copy URL
+            </button>
+
+            <br><br>
+
+            <a href="/analytics/${data.short_code}" target="_blank">
+                View Analytics
+            </a>
+        `;
+
+        urlInput.value = "";
+        customInput.value = "";
+
+        if (expirationInput) {
+            expirationInput.value = "";
+        }
+
+        loadURLs();
+    } catch (error) {
+        result.textContent =
+            "Unable to connect to the server.";
+        console.error(error);
     }
-
-    result.innerHTML = `
-        <p>Your shortened URL:</p>
-
-        <a href="${data.short_url}" target="_blank">
-            ${data.short_url}
-        </a>
-
-        <p>
-            Clicks: ${data.clicks}
-        </p>
-
-        <p>
-            Expires:
-            ${data.expires_at
-                ? new Date(data.expires_at).toLocaleString()
-                : "Never"}
-        </p>
-
-        <button onclick="copyURL('${data.short_url}')">
-            Copy URL
-        </button>
-
-        <br><br>
-
-        <a href="/api/urls/${data.short_code}/analytics"
-           target="_blank">
-            View Analytics
-        </a>
-    `;
-
-    loadURLs();
 }
 
 
@@ -84,15 +101,21 @@ async function loadURLs(page = 1) {
         params.append("search", search);
     }
 
-    const response = await fetch(`/api/urls?${params.toString()}`);
+    try {
+        const response = await fetch(
+            `/api/urls?${params.toString()}`
+        );
 
-    const data = await response.json();
+        const data = await response.json();
 
-    if (!response.ok) {
-        return;
+        if (!response.ok) {
+            return;
+        }
+
+        displayURLs(data);
+    } catch (error) {
+        console.error(error);
     }
-
-    displayURLs(data);
 }
 
 
@@ -109,6 +132,7 @@ function displayURLs(data) {
                 No URLs found.
             </p>
         `;
+
         updatePagination(data);
         return;
     }
@@ -134,9 +158,13 @@ function displayURLs(data) {
 
                 <span>
                     Expires:
-                    ${url.expires_at
-                        ? new Date(url.expires_at).toLocaleString()
-                        : "Never"}
+                    ${
+                        url.expires_at
+                            ? new Date(
+                                url.expires_at
+                            ).toLocaleString()
+                            : "Never"
+                    }
                 </span>
 
             </div>
@@ -148,13 +176,15 @@ function displayURLs(data) {
                 </button>
 
                 <a
-                    href="/api/urls/${url.short_code}/analytics"
+                    href="/analytics/${url.short_code}"
                     target="_blank"
                 >
                     Analytics
                 </a>
 
-                <button onclick="deleteURL('${url.short_code}')">
+                <button
+                    onclick="deleteURL('${url.short_code}')"
+                >
                     Delete
                 </button>
 
@@ -168,7 +198,8 @@ function displayURLs(data) {
 
 
 function updatePagination(data) {
-    const pagination = document.getElementById("pagination");
+    const pagination =
+        document.getElementById("pagination");
 
     if (!pagination) {
         return;
@@ -189,7 +220,11 @@ function updatePagination(data) {
         `;
     }
 
-    for (let page = 1; page <= data.total_pages; page++) {
+    for (
+        let page = 1;
+        page <= data.total_pages;
+        page++
+    ) {
         buttons += `
             <button onclick="loadURLs(${page})">
                 ${page}
@@ -218,30 +253,44 @@ async function deleteURL(shortCode) {
         return;
     }
 
-    const response = await fetch(
-        `/api/urls/${shortCode}`,
-        {
-            method: "DELETE"
+    try {
+        const response = await fetch(
+            `/api/urls/${shortCode}`,
+            {
+                method: "DELETE"
+            }
+        );
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            alert(
+                data.detail ||
+                "Failed to delete URL."
+            );
+
+            return;
         }
-    );
 
-    const data = await response.json();
+        alert("URL deleted successfully.");
 
-    if (!response.ok) {
-        alert(data.detail || "Failed to delete URL.");
-        return;
+        loadURLs();
+    } catch (error) {
+        alert("Unable to connect to the server.");
+        console.error(error);
     }
-
-    alert("URL deleted successfully.");
-
-    loadURLs();
 }
 
 
 function copyURL(url) {
-    navigator.clipboard.writeText(url);
-
-    alert("URL copied!");
+    navigator.clipboard
+        .writeText(url)
+        .then(() => {
+            alert("URL copied!");
+        })
+        .catch(() => {
+            alert("Failed to copy URL.");
+        });
 }
 
 
@@ -257,6 +306,9 @@ function searchURLs() {
 }
 
 
-window.addEventListener("DOMContentLoaded", () => {
-    loadURLs();
-});
+window.addEventListener(
+    "DOMContentLoaded",
+    () => {
+        loadURLs();
+    }
+);
