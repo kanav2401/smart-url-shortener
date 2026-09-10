@@ -314,3 +314,28 @@ td {
     }
 
 }
+
+.charts-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 20px;
+    margin-bottom: 20px;
+}
+
+.charts-grid .chart-card {
+    margin-bottom: 0;
+}
+
+.small-chart-container {
+    position: relative;
+    height: 300px;
+}
+
+
+@media (max-width: 700px) {
+
+    .charts-grid {
+        grid-template-columns: 1fr;
+    }
+
+}

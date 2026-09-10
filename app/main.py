@@ -7,7 +7,15 @@ from sqlalchemy.orm import Session
 
 from .database import Base, engine, get_db
 from .models import Click, URL
-from .schemas import AnalyticsResponse, URLCreate, URLResponse
+from .schemas import (
+    AnalyticsResponse,
+    BrowserStats,
+    ClickResponse,
+    DailyClickStats,
+    ReferrerStats,
+    URLCreate,
+    URLResponse
+)
 from .utils import generate_short_code
 
 
@@ -122,6 +130,7 @@ def get_urls(
         )
 
     total = query.count()
+
     total_pages = (total + limit - 1) // limit
 
     offset = (page - 1) * limit
@@ -180,6 +189,70 @@ def get_analytics(
         .all()
     )
 
+    browser_counts = {}
+
+    for click in clicks:
+        user_agent = click.user_agent or "Unknown"
+
+        if "Edg" in user_agent:
+            browser = "Microsoft Edge"
+        elif "Chrome" in user_agent:
+            browser = "Google Chrome"
+        elif "Firefox" in user_agent:
+            browser = "Mozilla Firefox"
+        elif "Safari" in user_agent:
+            browser = "Safari"
+        elif "Opera" in user_agent:
+            browser = "Opera"
+        else:
+            browser = "Other"
+
+        browser_counts[browser] = (
+            browser_counts.get(browser, 0) + 1
+        )
+
+    referrer_counts = {}
+
+    for click in clicks:
+        referrer = click.referrer or "Direct"
+
+        referrer_counts[referrer] = (
+            referrer_counts.get(referrer, 0) + 1
+        )
+
+    daily_counts = {}
+
+    for click in clicks:
+        date = click.clicked_at.strftime("%Y-%m-%d")
+
+        daily_counts[date] = (
+            daily_counts.get(date, 0) + 1
+        )
+
+    browsers = [
+        BrowserStats(
+            browser=browser,
+            clicks=count
+        )
+        for browser, count in browser_counts.items()
+    ]
+
+    referrers = [
+        ReferrerStats(
+            referrer=referrer,
+            clicks=count
+        )
+        for referrer, count in referrer_counts.items()
+    ]
+
+    daily_clicks = [
+        DailyClickStats(
+            date=date,
+            clicks=count
+        )
+        for date, count in sorted(daily_counts.items())
+    ]
+
     return AnalyticsResponse(
         short_code=url.short_code,
         original_url=url.original_url,
@@ -187,15 +260,18 @@ def get_analytics(
         created_at=url.created_at,
         expires_at=url.expires_at,
         clicks=[
-            {
-                "id": click.id,
-                "ip_address": click.ip_address,
-                "user_agent": click.user_agent,
-                "referrer": click.referrer,
-                "clicked_at": click.clicked_at
-            }
+            ClickResponse(
+                id=click.id,
+                ip_address=click.ip_address,
+                user_agent=click.user_agent,
+                referrer=click.referrer,
+                clicked_at=click.clicked_at
+            )
             for click in clicks
-        ]
+        ],
+        browsers=browsers,
+        referrers=referrers,
+        daily_clicks=daily_clicks
     )
 
 
@@ -257,7 +333,9 @@ def redirect_url(
 
     click = Click(
         url_id=url.id,
-        ip_address=request.client.host if request.client else None,
+        ip_address=request.client.host
+        if request.client
+        else None,
         user_agent=request.headers.get("user-agent"),
         referrer=request.headers.get("referer")
     )

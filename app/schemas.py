@@ -9,6 +9,29 @@ class URLCreate(BaseModel):
     expires_at: datetime | None = None
 
 
+class ClickResponse(BaseModel):
+    id: int
+    ip_address: str | None
+    user_agent: str | None
+    referrer: str | None
+    clicked_at: datetime
+
+
+class BrowserStats(BaseModel):
+    browser: str
+    clicks: int
+
+
+class ReferrerStats(BaseModel):
+    referrer: str
+    clicks: int
+
+
+class DailyClickStats(BaseModel):
+    date: str
+    clicks: int
+
+
 class URLResponse(BaseModel):
     original_url: str
     short_code: str
@@ -18,14 +41,6 @@ class URLResponse(BaseModel):
     clicks: int
 
 
-class ClickResponse(BaseModel):
-    id: int
-    ip_address: str | None
-    user_agent: str | None
-    referrer: str | None
-    clicked_at: datetime
-
-
 class AnalyticsResponse(BaseModel):
     short_code: str
     original_url: str
@@ -33,3 +48,6 @@ class AnalyticsResponse(BaseModel):
     created_at: datetime
     expires_at: datetime | None
     clicks: list[ClickResponse]
+    browsers: list[BrowserStats]
+    referrers: list[ReferrerStats]
+    daily_clicks: list[DailyClickStats]

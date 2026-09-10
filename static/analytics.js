@@ -1,4 +1,6 @@
 let clickChart = null;
+let browserChart = null;
+let referrerChart = null;
 
 
 function getShortCode() {
@@ -119,7 +121,11 @@ function displayAnalytics(data) {
 
     displayClicks(data.clicks || []);
 
-    createChart(data.clicks || []);
+    createClickChart(data.clicks || []);
+
+    createBrowserChart(data.browsers || []);
+
+    createReferrerChart(data.referrers || []);
 }
 
 
@@ -169,7 +175,7 @@ function displayClicks(clicks) {
 }
 
 
-function createChart(clicks) {
+function createClickChart(clicks) {
 
     const canvas =
         document.getElementById("click-chart");
@@ -244,13 +250,139 @@ function createChart(clicks) {
 
             maintainAspectRatio: false,
 
+            scales: {
+
+                y: {
+
+                    beginAtZero: true,
+
+                    ticks: {
+                        precision: 0
+                    }
+
+                }
+
+            }
+
+        }
+
+    });
+}
+
+
+function createBrowserChart(browsers) {
+
+    const canvas =
+        document.getElementById("browser-chart");
+
+
+    if (!canvas) {
+        return;
+    }
+
+
+    const labels =
+        browsers.map(item => item.browser);
+
+
+    const values =
+        browsers.map(item => item.clicks);
+
+
+    if (browserChart) {
+        browserChart.destroy();
+    }
+
+
+    browserChart = new Chart(canvas, {
+
+        type: "doughnut",
+
+        data: {
+
+            labels: labels,
+
+            datasets: [
+
+                {
+                    label: "Clicks",
+
+                    data: values
+                }
+
+            ]
+
+        },
+
+        options: {
+
+            responsive: true,
+
+            maintainAspectRatio: false,
+
             plugins: {
 
                 legend: {
-                    display: true
+                    position: "bottom"
                 }
 
-            },
+            }
+
+        }
+
+    });
+}
+
+
+function createReferrerChart(referrers) {
+
+    const canvas =
+        document.getElementById("referrer-chart");
+
+
+    if (!canvas) {
+        return;
+    }
+
+
+    const labels =
+        referrers.map(item => item.referrer);
+
+
+    const values =
+        referrers.map(item => item.clicks);
+
+
+    if (referrerChart) {
+        referrerChart.destroy();
+    }
+
+
+    referrerChart = new Chart(canvas, {
+
+        type: "bar",
+
+        data: {
+
+            labels: labels,
+
+            datasets: [
+
+                {
+                    label: "Clicks",
+
+                    data: values
+                }
+
+            ]
+
+        },
+
+        options: {
+
+            responsive: true,
+
+            maintainAspectRatio: false,
 
             scales: {
 
