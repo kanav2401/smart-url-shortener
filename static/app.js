@@ -6,6 +6,7 @@ async function shortenURL() {
 
     const original_url = urlInput.value.trim();
     const custom_code = customInput.value.trim();
+
     const expires_at = expirationInput
         ? expirationInput.value
         : "";
@@ -35,15 +36,28 @@ async function shortenURL() {
         if (!response.ok) {
             result.textContent =
                 data.detail || "Something went wrong.";
+
             return;
         }
 
         result.innerHTML = `
             <p>Your shortened URL:</p>
 
-            <a href="${data.short_url}" target="_blank">
-                ${data.short_url}
-            </a>
+            <div class="short-url">
+                <a
+                    href="${data.short_url}"
+                    target="_blank"
+                >
+                    ${data.short_url}
+                </a>
+
+                <button
+                    class="copy-button"
+                    onclick="copyURL('${data.short_url}')"
+                >
+                    Copy
+                </button>
+            </div>
 
             <p>
                 Clicks: ${data.clicks}
@@ -53,18 +67,33 @@ async function shortenURL() {
                 Expires:
                 ${
                     data.expires_at
-                        ? new Date(data.expires_at).toLocaleString()
+                        ? new Date(
+                            data.expires_at
+                        ).toLocaleString()
                         : "Never"
                 }
             </p>
 
-            <button onclick="copyURL('${data.short_url}')">
-                Copy URL
+            <button
+                class="qr-button"
+                onclick="showQRCode(
+                    '${data.short_url}',
+                    '${data.short_code}',
+                    'new'
+                )"
+            >
+                Show QR Code
             </button>
 
-            <br><br>
+            <div id="new-qr-container"></div>
 
-            <a href="/analytics/${data.short_code}" target="_blank">
+            <br>
+
+            <a
+                class="analytics-button"
+                href="/analytics/${data.short_code}"
+                target="_blank"
+            >
                 View Analytics
             </a>
         `;
@@ -77,16 +106,19 @@ async function shortenURL() {
         }
 
         loadURLs();
+
     } catch (error) {
         result.textContent =
             "Unable to connect to the server.";
+
         console.error(error);
     }
 }
 
 
 async function loadURLs(page = 1) {
-    const searchInput = document.getElementById("search");
+    const searchInput =
+        document.getElementById("search");
 
     const search = searchInput
         ? searchInput.value.trim()
@@ -113,6 +145,7 @@ async function loadURLs(page = 1) {
         }
 
         displayURLs(data);
+
     } catch (error) {
         console.error(error);
     }
@@ -120,7 +153,8 @@ async function loadURLs(page = 1) {
 
 
 function displayURLs(data) {
-    const container = document.getElementById("url-list");
+    const container =
+        document.getElementById("url-list");
 
     if (!container) {
         return;
@@ -134,6 +168,7 @@ function displayURLs(data) {
         `;
 
         updatePagination(data);
+
         return;
     }
 
@@ -143,7 +178,10 @@ function displayURLs(data) {
             <div class="url-info">
 
                 <strong>
-                    <a href="${url.short_url}" target="_blank">
+                    <a
+                        href="${url.short_url}"
+                        target="_blank"
+                    >
                         ${url.short_code}
                     </a>
                 </strong>
@@ -169,11 +207,25 @@ function displayURLs(data) {
 
             </div>
 
+
             <div class="url-actions">
 
-                <button onclick="copyURL('${url.short_url}')">
+                <button
+                    onclick="copyURL('${url.short_url}')"
+                >
                     Copy
                 </button>
+
+
+                <button
+                    onclick="showQRCode(
+                        '${url.short_url}',
+                        '${url.short_code}'
+                    )"
+                >
+                    QR Code
+                </button>
+
 
                 <a
                     href="/analytics/${url.short_code}"
@@ -182,6 +234,7 @@ function displayURLs(data) {
                     Analytics
                 </a>
 
+
                 <button
                     onclick="deleteURL('${url.short_code}')"
                 >
@@ -189,6 +242,12 @@ function displayURLs(data) {
                 </button>
 
             </div>
+
+
+            <div
+                id="qr-${url.short_code}"
+                class="qr-container"
+            ></div>
 
         </div>
     `).join("");
@@ -214,7 +273,9 @@ function updatePagination(data) {
 
     if (data.page > 1) {
         buttons += `
-            <button onclick="loadURLs(${data.page - 1})">
+            <button
+                onclick="loadURLs(${data.page - 1})"
+            >
                 Previous
             </button>
         `;
@@ -226,7 +287,14 @@ function updatePagination(data) {
         page++
     ) {
         buttons += `
-            <button onclick="loadURLs(${page})">
+            <button
+                class="${
+                    page === data.page
+                        ? "active-page"
+                        : ""
+                }"
+                onclick="loadURLs(${page})"
+            >
                 ${page}
             </button>
         `;
@@ -234,7 +302,9 @@ function updatePagination(data) {
 
     if (data.page < data.total_pages) {
         buttons += `
-            <button onclick="loadURLs(${data.page + 1})">
+            <button
+                onclick="loadURLs(${data.page + 1})"
+            >
                 Next
             </button>
         `;
@@ -275,8 +345,12 @@ async function deleteURL(shortCode) {
         alert("URL deleted successfully.");
 
         loadURLs();
+
     } catch (error) {
-        alert("Unable to connect to the server.");
+        alert(
+            "Unable to connect to the server."
+        );
+
         console.error(error);
     }
 }
@@ -291,6 +365,63 @@ function copyURL(url) {
         .catch(() => {
             alert("Failed to copy URL.");
         });
+}
+
+
+function showQRCode(
+    shortUrl,
+    shortCode,
+    location = null
+) {
+    let container;
+
+    if (location === "new") {
+        container =
+            document.getElementById("new-qr-container");
+    } else {
+        container =
+            document.getElementById(
+                `qr-${shortCode}`
+            );
+    }
+
+    if (!container) {
+        return;
+    }
+
+    if (container.innerHTML.trim() !== "") {
+        container.innerHTML = "";
+        return;
+    }
+
+    container.innerHTML = `
+        <div class="qr-box">
+
+            <h3>
+                QR Code
+            </h3>
+
+            <img
+                src="/api/qr/${shortCode}"
+                alt="QR Code"
+                class="qr-image"
+            >
+
+            <p>
+                Scan this QR code to open your
+                shortened URL.
+            </p>
+
+            <a
+                href="/api/qr/${shortCode}"
+                download="smart-url-qr-code.png"
+                class="download-qr-button"
+            >
+                Download QR Code
+            </a>
+
+        </div>
+    `;
 }
 
 

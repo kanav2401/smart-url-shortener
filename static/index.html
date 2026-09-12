@@ -7,6 +7,7 @@
         name="viewport"
         content="width=device-width, initial-scale=1.0"
     >
+
     <title>Smart URL Shortener</title>
 
     <link
@@ -25,6 +26,7 @@
         Shorten URLs and track their performance.
     </p>
 
+
     <div class="card">
 
         <label for="url">
@@ -37,6 +39,7 @@
             placeholder="https://example.com/very-long-url"
         >
 
+
         <label for="custom">
             Custom Code (Optional)
         </label>
@@ -47,6 +50,7 @@
             placeholder="my-link"
         >
 
+
         <label for="expiration">
             Expiration Date (Optional)
         </label>
@@ -56,9 +60,11 @@
             type="datetime-local"
         >
 
+
         <button onclick="shortenURL()">
             Shorten URL
         </button>
+
 
         <div id="result"></div>
 
@@ -67,7 +73,18 @@
 
     <div class="dashboard">
 
-        <h2>Your URLs</h2>
+        <div class="section-header">
+
+            <div>
+                <h2>Your URLs</h2>
+
+                <p class="section-description">
+                    Manage your shortened URLs and view their analytics.
+                </p>
+            </div>
+
+        </div>
+
 
         <input
             id="search"
@@ -76,13 +93,18 @@
             oninput="searchURLs()"
         >
 
+
         <div id="url-list"></div>
+
 
         <div id="pagination"></div>
 
     </div>
 
 </div>
+
+
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
 
 <script src="/static/app.js"></script>
 

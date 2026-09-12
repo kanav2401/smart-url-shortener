@@ -584,3 +584,52 @@ select {
         gap: 5px;
     }
 }
+
+.qr-button {
+    width: auto;
+    margin-top: 10px;
+    padding: 10px 18px;
+}
+
+.qr-container {
+    margin-top: 20px;
+}
+
+.qr-box {
+    padding: 20px;
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    text-align: center;
+}
+
+.qr-box h3 {
+    margin-top: 0;
+    margin-bottom: 15px;
+}
+
+.qr-box canvas {
+    display: block;
+    margin: 0 auto 15px;
+    max-width: 100%;
+}
+
+.qr-box p {
+    color: #6b7280;
+    font-size: 14px;
+}
+
+.download-qr-button {
+    width: auto;
+    margin-top: 10px;
+    padding: 10px 16px;
+}
+
+.active-page {
+    opacity: 0.7;
+    cursor: default;
+}
+
+.new-qr-container {
+    margin-top: 20px;
+}

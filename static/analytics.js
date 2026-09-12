@@ -29,6 +29,10 @@ function getBrowser(userAgent) {
         return "Microsoft Edge";
     }
 
+    if (userAgent.includes("OPR") || userAgent.includes("Opera")) {
+        return "Opera";
+    }
+
     if (userAgent.includes("Chrome")) {
         return "Google Chrome";
     }
@@ -41,10 +45,6 @@ function getBrowser(userAgent) {
         return "Safari";
     }
 
-    if (userAgent.includes("Opera")) {
-        return "Opera";
-    }
-
     return "Other";
 }
 
@@ -52,9 +52,14 @@ function getBrowser(userAgent) {
 async function loadAnalytics() {
     const shortCode = getShortCode();
 
+    if (!shortCode) {
+        showError("Invalid short URL.");
+        return;
+    }
+
     try {
         const response = await fetch(
-            `/api/urls/${shortCode}/analytics`
+            `/api/urls/${encodeURIComponent(shortCode)}/analytics`
         );
 
         const data = await response.json();
@@ -119,13 +124,36 @@ function displayAnalytics(data) {
             : "Never";
 
 
+    generateQRCode(shortUrl);
+
     displayClicks(data.clicks || []);
 
-    createClickChart(data.clicks || []);
+    createClickChart(data.daily_clicks || []);
 
     createBrowserChart(data.browsers || []);
 
     createReferrerChart(data.referrers || []);
+}
+
+
+function generateQRCode(shortUrl) {
+
+    const qrImage =
+        document.getElementById("qr-code");
+
+    if (!qrImage) {
+        return;
+    }
+
+    const encodedURL =
+        encodeURIComponent(shortUrl);
+
+    qrImage.src =
+        `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodedURL}`;
+
+    qrImage.onerror = function() {
+        qrImage.style.display = "none";
+    };
 }
 
 
@@ -175,7 +203,7 @@ function displayClicks(clicks) {
 }
 
 
-function createClickChart(clicks) {
+function createClickChart(dailyClicks) {
 
     const canvas =
         document.getElementById("click-chart");
@@ -186,33 +214,19 @@ function createClickChart(clicks) {
     }
 
 
-    const groupedClicks = {};
-
-
-    clicks.forEach(click => {
-
-        const date =
-            new Date(click.clicked_at)
-                .toLocaleDateString();
-
-
-        if (!groupedClicks[date]) {
-            groupedClicks[date] = 0;
-        }
-
-
-        groupedClicks[date]++;
-    });
-
-
     const labels =
-        Object.keys(groupedClicks).reverse();
+        dailyClicks.map(item => {
+
+            const date = new Date(
+                `${item.date}T00:00:00`
+            );
+
+            return date.toLocaleDateString();
+        });
 
 
     const values =
-        labels.map(
-            date => groupedClicks[date]
-        );
+        dailyClicks.map(item => item.clicks);
 
 
     if (clickChart) {
@@ -250,7 +264,37 @@ function createClickChart(clicks) {
 
             maintainAspectRatio: false,
 
+            interaction: {
+                intersect: false,
+                mode: "index"
+            },
+
+            plugins: {
+
+                legend: {
+                    display: true
+                },
+
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return `Clicks: ${context.parsed.y}`;
+                        }
+                    }
+                }
+
+            },
+
             scales: {
+
+                x: {
+
+                    title: {
+                        display: true,
+                        text: "Date"
+                    }
+
+                },
 
                 y: {
 
@@ -258,6 +302,11 @@ function createClickChart(clicks) {
 
                     ticks: {
                         precision: 0
+                    },
+
+                    title: {
+                        display: true,
+                        text: "Clicks"
                     }
 
                 }
@@ -294,6 +343,11 @@ function createBrowserChart(browsers) {
     }
 
 
+    if (labels.length === 0) {
+        return;
+    }
+
+
     browserChart = new Chart(canvas, {
 
         type: "doughnut",
@@ -324,6 +378,14 @@ function createBrowserChart(browsers) {
 
                 legend: {
                     position: "bottom"
+                },
+
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return `${context.label}: ${context.parsed} clicks`;
+                        }
+                    }
                 }
 
             }
@@ -358,6 +420,11 @@ function createReferrerChart(referrers) {
     }
 
 
+    if (labels.length === 0) {
+        return;
+    }
+
+
     referrerChart = new Chart(canvas, {
 
         type: "bar",
@@ -384,7 +451,32 @@ function createReferrerChart(referrers) {
 
             maintainAspectRatio: false,
 
+            plugins: {
+
+                legend: {
+                    display: false
+                },
+
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return `Clicks: ${context.parsed.y}`;
+                        }
+                    }
+                }
+
+            },
+
             scales: {
+
+                x: {
+
+                    title: {
+                        display: true,
+                        text: "Referrer"
+                    }
+
+                },
 
                 y: {
 
@@ -392,6 +484,11 @@ function createReferrerChart(referrers) {
 
                     ticks: {
                         precision: 0
+                    },
+
+                    title: {
+                        display: true,
+                        text: "Clicks"
                     }
 
                 }

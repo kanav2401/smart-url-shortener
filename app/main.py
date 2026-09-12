@@ -1,7 +1,10 @@
 from datetime import datetime
+from io import BytesIO
+
+import qrcode
 
 from fastapi import Depends, FastAPI, HTTPException, Request
-from fastapi.responses import FileResponse, RedirectResponse
+from fastapi.responses import FileResponse, RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 
@@ -11,7 +14,6 @@ from .schemas import (
     AnalyticsResponse,
     BrowserStats,
     ClickResponse,
-    DailyClickStats,
     ReferrerStats,
     URLCreate,
     URLResponse
@@ -220,15 +222,6 @@ def get_analytics(
             referrer_counts.get(referrer, 0) + 1
         )
 
-    daily_counts = {}
-
-    for click in clicks:
-        date = click.clicked_at.strftime("%Y-%m-%d")
-
-        daily_counts[date] = (
-            daily_counts.get(date, 0) + 1
-        )
-
     browsers = [
         BrowserStats(
             browser=browser,
@@ -243,14 +236,6 @@ def get_analytics(
             clicks=count
         )
         for referrer, count in referrer_counts.items()
-    ]
-
-    daily_clicks = [
-        DailyClickStats(
-            date=date,
-            clicks=count
-        )
-        for date, count in sorted(daily_counts.items())
     ]
 
     return AnalyticsResponse(
@@ -270,8 +255,48 @@ def get_analytics(
             for click in clicks
         ],
         browsers=browsers,
-        referrers=referrers,
-        daily_clicks=daily_clicks
+        referrers=referrers
+    )
+
+
+@app.get("/api/qr/{short_code}")
+def generate_qr_code(
+    short_code: str,
+    request: Request,
+    db: Session = Depends(get_db)
+):
+    url = (
+        db.query(URL)
+        .filter(URL.short_code == short_code)
+        .first()
+    )
+
+    if not url:
+        raise HTTPException(
+            status_code=404,
+            detail="Short URL not found"
+        )
+
+    short_url = f"{request.base_url}{short_code}"
+
+    qr = qrcode.QRCode(
+        version=1,
+        box_size=10,
+        border=4
+    )
+
+    qr.add_data(short_url)
+    qr.make(fit=True)
+
+    image = qr.make_image()
+
+    image_bytes = BytesIO()
+    image.save(image_bytes, format="PNG")
+    image_bytes.seek(0)
+
+    return StreamingResponse(
+        image_bytes,
+        media_type="image/png"
     )
 
 
