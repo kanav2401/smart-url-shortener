@@ -1,3 +1,4 @@
+from collections import defaultdict
 from datetime import datetime
 from io import BytesIO
 
@@ -8,15 +9,20 @@ from fastapi.responses import FileResponse, RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 
+from .auth import create_access_token, hash_password, verify_password
 from .database import Base, engine, get_db
-from .models import Click, URL
+from .models import Click, URL, User
 from .schemas import (
     AnalyticsResponse,
     BrowserStats,
     ClickResponse,
+    DailyClickStats,
     ReferrerStats,
     URLCreate,
-    URLResponse
+    URLResponse,
+    UserLogin,
+    UserRegister,
+    UserResponse
 )
 from .utils import generate_short_code
 
@@ -46,6 +52,96 @@ def home():
 @app.get("/analytics/{short_code}")
 def analytics_page(short_code: str):
     return FileResponse("static/analytics.html")
+
+
+@app.post(
+    "/api/auth/register",
+    response_model=UserResponse,
+    status_code=201
+)
+def register_user(
+    data: UserRegister,
+    db: Session = Depends(get_db)
+):
+    existing_user = (
+        db.query(User)
+        .filter(User.email == data.email.lower().strip())
+        .first()
+    )
+
+    if existing_user:
+        raise HTTPException(
+            status_code=409,
+            detail="Email is already registered"
+        )
+
+    if len(data.password) < 6:
+        raise HTTPException(
+            status_code=400,
+            detail="Password must be at least 6 characters long"
+        )
+
+    new_user = User(
+        name=data.name.strip(),
+        email=data.email.lower().strip(),
+        hashed_password=hash_password(data.password)
+    )
+
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
+
+    return UserResponse(
+        id=new_user.id,
+        name=new_user.name,
+        email=new_user.email,
+        created_at=new_user.created_at
+    )
+
+
+@app.post("/api/auth/login")
+def login_user(
+    data: UserLogin,
+    db: Session = Depends(get_db)
+):
+    user = (
+        db.query(User)
+        .filter(User.email == data.email.lower().strip())
+        .first()
+    )
+
+    if not user:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid email or password"
+        )
+
+    if not verify_password(
+        data.password,
+        user.hashed_password
+    ):
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid email or password"
+        )
+
+    access_token = create_access_token(
+        data={
+            "sub": str(user.id),
+            "email": user.email
+        }
+    )
+
+    return {
+        "message": "Login successful",
+        "access_token": access_token,
+        "token_type": "bearer",
+        "user": {
+            "id": user.id,
+            "name": user.name,
+            "email": user.email
+        }
+    }
 
 
 @app.post("/api/urls", response_model=URLResponse)
@@ -198,14 +294,14 @@ def get_analytics(
 
         if "Edg" in user_agent:
             browser = "Microsoft Edge"
+        elif "OPR" in user_agent or "Opera" in user_agent:
+            browser = "Opera"
         elif "Chrome" in user_agent:
             browser = "Google Chrome"
         elif "Firefox" in user_agent:
             browser = "Mozilla Firefox"
         elif "Safari" in user_agent:
             browser = "Safari"
-        elif "Opera" in user_agent:
-            browser = "Opera"
         else:
             browser = "Other"
 
@@ -222,6 +318,12 @@ def get_analytics(
             referrer_counts.get(referrer, 0) + 1
         )
 
+    daily_counts = defaultdict(int)
+
+    for click in clicks:
+        date = click.clicked_at.strftime("%Y-%m-%d")
+        daily_counts[date] += 1
+
     browsers = [
         BrowserStats(
             browser=browser,
@@ -236,6 +338,14 @@ def get_analytics(
             clicks=count
         )
         for referrer, count in referrer_counts.items()
+    ]
+
+    daily_clicks = [
+        DailyClickStats(
+            date=date,
+            clicks=count
+        )
+        for date, count in sorted(daily_counts.items())
     ]
 
     return AnalyticsResponse(
@@ -255,7 +365,8 @@ def get_analytics(
             for click in clicks
         ],
         browsers=browsers,
-        referrers=referrers
+        referrers=referrers,
+        daily_clicks=daily_clicks
     )
 
 
