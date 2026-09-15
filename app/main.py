@@ -9,7 +9,12 @@ from fastapi.responses import FileResponse, RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 
-from .auth import create_access_token, hash_password, verify_password
+from .auth import (
+    create_access_token,
+    get_current_user,
+    hash_password,
+    verify_password
+)
 from .database import Base, engine, get_db
 from .models import Click, URL, User
 from .schemas import (
@@ -144,10 +149,23 @@ def login_user(
     }
 
 
+@app.get("/api/auth/me", response_model=UserResponse)
+def get_me(
+    current_user: User = Depends(get_current_user)
+):
+    return UserResponse(
+        id=current_user.id,
+        name=current_user.name,
+        email=current_user.email,
+        created_at=current_user.created_at
+    )
+
+
 @app.post("/api/urls", response_model=URLResponse)
 def create_url(
     data: URLCreate,
     request: Request,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     if data.custom_code:
@@ -176,6 +194,7 @@ def create_url(
             short_code = generate_short_code()
 
     new_url = URL(
+        user_id=current_user.id,
         original_url=str(data.original_url),
         short_code=short_code,
         expires_at=data.expires_at
@@ -203,6 +222,7 @@ def get_urls(
     page: int = 1,
     limit: int = 10,
     search: str | None = None,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     if page < 1:
@@ -217,7 +237,10 @@ def get_urls(
             detail="Limit must be between 1 and 100"
         )
 
-    query = db.query(URL)
+    query = (
+        db.query(URL)
+        .filter(URL.user_id == current_user.id)
+    )
 
     if search:
         search_term = f"%{search.strip()}%"
@@ -266,11 +289,15 @@ def get_urls(
 )
 def get_analytics(
     short_code: str,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     url = (
         db.query(URL)
-        .filter(URL.short_code == short_code)
+        .filter(
+            URL.short_code == short_code,
+            URL.user_id == current_user.id
+        )
         .first()
     )
 
@@ -414,11 +441,15 @@ def generate_qr_code(
 @app.delete("/api/urls/{short_code}")
 def delete_url(
     short_code: str,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     url = (
         db.query(URL)
-        .filter(URL.short_code == short_code)
+        .filter(
+            URL.short_code == short_code,
+            URL.user_id == current_user.id
+        )
         .first()
     )
 
