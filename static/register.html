@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>Register - Smart URL Shortener</title>
+
+    <link
+        rel="stylesheet"
+        href="/static/style.css"
+    >
+</head>
+
+<body>
+
+<div class="auth-container">
+
+    <div class="auth-card">
+
+        <h1>Smart URL Shortener</h1>
+
+        <p class="auth-subtitle">
+            Create your account.
+        </p>
+
+
+        <form id="register-form">
+
+            <label for="name">
+                Name
+            </label>
+
+            <input
+                id="name"
+                type="text"
+                placeholder="Enter your name"
+                required
+            >
+
+
+            <label for="email">
+                Email
+            </label>
+
+            <input
+                id="email"
+                type="email"
+                placeholder="Enter your email"
+                required
+            >
+
+
+            <label for="password">
+                Password
+            </label>
+
+            <input
+                id="password"
+                type="password"
+                placeholder="Minimum 6 characters"
+                required
+            >
+
+
+            <label for="confirm-password">
+                Confirm Password
+            </label>
+
+            <input
+                id="confirm-password"
+                type="password"
+                placeholder="Confirm your password"
+                required
+            >
+
+
+            <button type="submit">
+                Create Account
+            </button>
+
+        </form>
+
+
+        <div
+            id="register-message"
+            class="auth-message"
+        ></div>
+
+
+        <p class="auth-switch">
+            Already have an account?
+
+            <a href="/login">
+                Login
+            </a>
+        </p>
+
+    </div>
+
+</div>
+
+
+<script src="/static/register.js"></script>
+
+</body>
+
+</html>

@@ -53,6 +53,15 @@ app.mount(
 def home():
     return FileResponse("static/index.html")
 
+@app.get("/login")
+def login_page():
+    return FileResponse("static/login.html")
+
+
+@app.get("/register")
+def register_page():
+    return FileResponse("static/register.html")
+
 
 @app.get("/analytics/{short_code}")
 def analytics_page(short_code: str):
