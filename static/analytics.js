@@ -3,6 +3,19 @@ let browserChart = null;
 let referrerChart = null;
 
 
+function getAuthHeaders() {
+    const token = localStorage.getItem("access_token");
+
+    if (!token) {
+        return {};
+    }
+
+    return {
+        Authorization: `Bearer ${token}`
+    };
+}
+
+
 function getShortCode() {
     const path = window.location.pathname;
     const parts = path.split("/");
@@ -29,7 +42,10 @@ function getBrowser(userAgent) {
         return "Microsoft Edge";
     }
 
-    if (userAgent.includes("OPR") || userAgent.includes("Opera")) {
+    if (
+        userAgent.includes("OPR") ||
+        userAgent.includes("Opera")
+    ) {
         return "Opera";
     }
 
@@ -57,16 +73,38 @@ async function loadAnalytics() {
         return;
     }
 
+    const token =
+        localStorage.getItem("access_token");
+
+    if (!token) {
+        window.location.href = "/login";
+        return;
+    }
+
     try {
         const response = await fetch(
-            `/api/urls/${encodeURIComponent(shortCode)}/analytics`
+            `/api/urls/${encodeURIComponent(shortCode)}/analytics`,
+            {
+                method: "GET",
+                headers: getAuthHeaders()
+            }
         );
+
+        if (response.status === 401) {
+            localStorage.removeItem("access_token");
+            localStorage.removeItem("user");
+
+            window.location.href = "/login";
+
+            return;
+        }
 
         const data = await response.json();
 
         if (!response.ok) {
             showError(
-                data.detail || "Unable to load analytics."
+                data.detail ||
+                "Unable to load analytics."
             );
 
             return;
@@ -75,7 +113,10 @@ async function loadAnalytics() {
         displayAnalytics(data);
 
     } catch (error) {
-        console.error(error);
+        console.error(
+            "Analytics error:",
+            error
+        );
 
         showError(
             "Unable to connect to the server."
@@ -86,8 +127,13 @@ async function loadAnalytics() {
 
 function displayAnalytics(data) {
 
-    document.getElementById("short-code").textContent =
-        data.short_code;
+    const shortCodeElement =
+        document.getElementById("short-code");
+
+    if (shortCodeElement) {
+        shortCodeElement.textContent =
+            data.short_code;
+    }
 
 
     const shortUrl =
@@ -98,41 +144,70 @@ function displayAnalytics(data) {
         document.getElementById("short-url");
 
 
-    shortUrlElement.textContent =
-        shortUrl;
+    if (shortUrlElement) {
+        shortUrlElement.textContent =
+            shortUrl;
+
+        shortUrlElement.href =
+            shortUrl;
+    }
 
 
-    shortUrlElement.href =
-        shortUrl;
+    const originalUrlElement =
+        document.getElementById("original-url");
+
+    if (originalUrlElement) {
+        originalUrlElement.textContent =
+            data.original_url;
+    }
 
 
-    document.getElementById("original-url").textContent =
-        data.original_url;
+    const totalClicksElement =
+        document.getElementById("total-clicks");
+
+    if (totalClicksElement) {
+        totalClicksElement.textContent =
+            data.total_clicks;
+    }
 
 
-    document.getElementById("total-clicks").textContent =
-        data.total_clicks;
+    const createdAtElement =
+        document.getElementById("created-at");
+
+    if (createdAtElement) {
+        createdAtElement.textContent =
+            formatDate(data.created_at);
+    }
 
 
-    document.getElementById("created-at").textContent =
-        formatDate(data.created_at);
+    const expiresAtElement =
+        document.getElementById("expires-at");
 
-
-    document.getElementById("expires-at").textContent =
-        data.expires_at
-            ? formatDate(data.expires_at)
-            : "Never";
+    if (expiresAtElement) {
+        expiresAtElement.textContent =
+            data.expires_at
+                ? formatDate(data.expires_at)
+                : "Never";
+    }
 
 
     generateQRCode(shortUrl);
 
-    displayClicks(data.clicks || []);
+    displayClicks(
+        data.clicks || []
+    );
 
-    createClickChart(data.daily_clicks || []);
+    createClickChart(
+        data.daily_clicks || []
+    );
 
-    createBrowserChart(data.browsers || []);
+    createBrowserChart(
+        data.browsers || []
+    );
 
-    createReferrerChart(data.referrers || []);
+    createReferrerChart(
+        data.referrers || []
+    );
 }
 
 
@@ -160,14 +235,23 @@ function generateQRCode(shortUrl) {
 function displayClicks(clicks) {
 
     const table =
-        document.getElementById("clicks-table");
+        document.getElementById(
+            "clicks-table"
+        );
+
+    if (!table) {
+        return;
+    }
 
 
     if (clicks.length === 0) {
 
         table.innerHTML = `
             <tr>
-                <td colspan="4" class="empty">
+                <td
+                    colspan="4"
+                    class="empty"
+                >
                     No clicks recorded yet.
                 </td>
             </tr>
@@ -182,7 +266,9 @@ function displayClicks(clicks) {
         <tr>
 
             <td>
-                ${formatDate(click.clicked_at)}
+                ${formatDate(
+                    click.clicked_at
+                )}
             </td>
 
             <td>
@@ -190,7 +276,9 @@ function displayClicks(clicks) {
             </td>
 
             <td>
-                ${getBrowser(click.user_agent)}
+                ${getBrowser(
+                    click.user_agent
+                )}
             </td>
 
             <td>
@@ -206,8 +294,9 @@ function displayClicks(clicks) {
 function createClickChart(dailyClicks) {
 
     const canvas =
-        document.getElementById("click-chart");
-
+        document.getElementById(
+            "click-chart"
+        );
 
     if (!canvas) {
         return;
@@ -226,7 +315,9 @@ function createClickChart(dailyClicks) {
 
 
     const values =
-        dailyClicks.map(item => item.clicks);
+        dailyClicks.map(
+            item => item.clicks
+        );
 
 
     if (clickChart) {
@@ -322,8 +413,9 @@ function createClickChart(dailyClicks) {
 function createBrowserChart(browsers) {
 
     const canvas =
-        document.getElementById("browser-chart");
-
+        document.getElementById(
+            "browser-chart"
+        );
 
     if (!canvas) {
         return;
@@ -331,11 +423,15 @@ function createBrowserChart(browsers) {
 
 
     const labels =
-        browsers.map(item => item.browser);
+        browsers.map(
+            item => item.browser
+        );
 
 
     const values =
-        browsers.map(item => item.clicks);
+        browsers.map(
+            item => item.clicks
+        );
 
 
     if (browserChart) {
@@ -399,8 +495,9 @@ function createBrowserChart(browsers) {
 function createReferrerChart(referrers) {
 
     const canvas =
-        document.getElementById("referrer-chart");
-
+        document.getElementById(
+            "referrer-chart"
+        );
 
     if (!canvas) {
         return;
@@ -408,11 +505,15 @@ function createReferrerChart(referrers) {
 
 
     const labels =
-        referrers.map(item => item.referrer);
+        referrers.map(
+            item => item.referrer
+        );
 
 
     const values =
-        referrers.map(item => item.clicks);
+        referrers.map(
+            item => item.clicks
+        );
 
 
     if (referrerChart) {
@@ -503,13 +604,26 @@ function createReferrerChart(referrers) {
 
 function showError(message) {
 
-    document.querySelector(".dashboard").innerHTML = `
+    const dashboard =
+        document.querySelector(
+            ".dashboard"
+        );
+
+    if (!dashboard) {
+        return;
+    }
+
+    dashboard.innerHTML = `
 
         <div class="error-card">
 
-            <h1>Unable to Load Analytics</h1>
+            <h1>
+                Unable to Load Analytics
+            </h1>
 
-            <p>${message}</p>
+            <p>
+                ${message}
+            </p>
 
             <a href="/">
                 ← Back to URL Shortener

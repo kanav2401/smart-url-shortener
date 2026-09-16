@@ -1,16 +1,28 @@
 from datetime import datetime, timedelta, timezone
+import os
 
 from fastapi import Depends, HTTPException
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from sqlalchemy.orm import Session
+from dotenv import load_dotenv
 
 from .database import get_db
 from .models import User
 
 
-SECRET_KEY = "change-this-secret-key"
+load_dotenv()
+
+
+SECRET_KEY = os.getenv("SECRET_KEY")
+
+if not SECRET_KEY:
+    raise RuntimeError(
+        "SECRET_KEY is not set in the environment."
+    )
+
+
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60
 
@@ -19,6 +31,7 @@ pwd_context = CryptContext(
     schemes=["bcrypt"],
     deprecated="auto"
 )
+
 
 security = HTTPBearer()
 
@@ -45,11 +58,16 @@ def create_access_token(
     to_encode = data.copy()
 
     if expires_delta:
-        expire = datetime.now(timezone.utc) + expires_delta
+        expire = (
+            datetime.now(timezone.utc)
+            + expires_delta
+        )
     else:
         expire = (
             datetime.now(timezone.utc)
-            + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+            + timedelta(
+                minutes=ACCESS_TOKEN_EXPIRE_MINUTES
+            )
         )
 
     to_encode.update({
@@ -63,7 +81,10 @@ def create_access_token(
     )
 
 
-def decode_access_token(token: str) -> dict | None:
+def decode_access_token(
+    token: str
+) -> dict | None:
+
     try:
         payload = jwt.decode(
             token,
@@ -78,9 +99,12 @@ def decode_access_token(token: str) -> dict | None:
 
 
 def get_current_user(
-    credentials: HTTPAuthorizationCredentials = Depends(security),
+    credentials: HTTPAuthorizationCredentials = Depends(
+        security
+    ),
     db: Session = Depends(get_db)
 ):
+
     token = credentials.credentials
 
     payload = decode_access_token(token)
@@ -101,6 +125,7 @@ def get_current_user(
 
     try:
         user_id = int(user_id)
+
     except (TypeError, ValueError):
         raise HTTPException(
             status_code=401,
