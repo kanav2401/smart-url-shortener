@@ -1,3 +1,86 @@
+function getAuthHeaders() {
+    const token = localStorage.getItem("access_token");
+
+    if (!token) {
+        return {};
+    }
+
+    return {
+        Authorization: `Bearer ${token}`
+    };
+}
+
+function logout() {
+    localStorage.removeItem("access_token");
+    localStorage.removeItem("user");
+
+    window.location.href = "/login";
+}
+
+function setupLogout() {
+    const logoutButton = document.getElementById("logout-button");
+
+    if (logoutButton) {
+        logoutButton.addEventListener("click", logout);
+    }
+}
+
+function handleUnauthorized(response) {
+    if (response.status === 401) {
+        localStorage.removeItem("access_token");
+        localStorage.removeItem("user");
+
+        window.location.href = "/login";
+
+        return true;
+    }
+
+    return false;
+}
+
+async function verifyUser() {
+    const token = localStorage.getItem("access_token");
+
+    if (!token) {
+        window.location.href = "/login";
+        return false;
+    }
+
+    try {
+        const response = await fetch("/api/auth/me", {
+            method: "GET",
+            headers: getAuthHeaders()
+        });
+
+        if (handleUnauthorized(response)) {
+            return false;
+        }
+
+        if (!response.ok) {
+            console.error("Failed to verify user.");
+            return false;
+        }
+
+        const user = await response.json();
+
+        localStorage.setItem(
+            "user",
+            JSON.stringify(user)
+        );
+
+        const userName = document.getElementById("user-name");
+
+        if (userName) {
+            userName.textContent = user.name;
+        }
+
+        return true;
+    } catch (error) {
+        console.error("Unable to verify user:", error);
+        return false;
+    }
+}
+
 async function shortenURL() {
     const urlInput = document.getElementById("url");
     const customInput = document.getElementById("custom");
@@ -20,7 +103,8 @@ async function shortenURL() {
         const response = await fetch("/api/urls", {
             method: "POST",
             headers: {
-                "Content-Type": "application/json"
+                "Content-Type": "application/json",
+                ...getAuthHeaders()
             },
             body: JSON.stringify({
                 original_url: original_url,
@@ -31,12 +115,15 @@ async function shortenURL() {
             })
         });
 
+        if (handleUnauthorized(response)) {
+            return;
+        }
+
         const data = await response.json();
 
         if (!response.ok) {
             result.textContent =
                 data.detail || "Something went wrong.";
-
             return;
         }
 
@@ -106,7 +193,6 @@ async function shortenURL() {
         }
 
         loadURLs();
-
     } catch (error) {
         result.textContent =
             "Unable to connect to the server.";
@@ -115,10 +201,8 @@ async function shortenURL() {
     }
 }
 
-
 async function loadURLs(page = 1) {
-    const searchInput =
-        document.getElementById("search");
+    const searchInput = document.getElementById("search");
 
     const search = searchInput
         ? searchInput.value.trim()
@@ -135,22 +219,34 @@ async function loadURLs(page = 1) {
 
     try {
         const response = await fetch(
-            `/api/urls?${params.toString()}`
+            `/api/urls?${params.toString()}`,
+            {
+                method: "GET",
+                headers: getAuthHeaders()
+            }
         );
+
+        if (handleUnauthorized(response)) {
+            return;
+        }
 
         const data = await response.json();
 
         if (!response.ok) {
+            console.error(
+                data.detail || "Failed to load URLs."
+            );
             return;
         }
 
         displayURLs(data);
-
     } catch (error) {
-        console.error(error);
+        console.error(
+            "Error loading URLs:",
+            error
+        );
     }
 }
-
 
 function displayURLs(data) {
     const container =
@@ -160,7 +256,10 @@ function displayURLs(data) {
         return;
     }
 
-    if (data.results.length === 0) {
+    if (
+        !data.results ||
+        data.results.length === 0
+    ) {
         container.innerHTML = `
             <p class="empty">
                 No URLs found.
@@ -172,89 +271,85 @@ function displayURLs(data) {
         return;
     }
 
-    container.innerHTML = data.results.map(url => `
-        <div class="url-item">
+    container.innerHTML = data.results
+        .map(url => `
+            <div class="url-item">
 
-            <div class="url-info">
+                <div class="url-info">
 
-                <strong>
+                    <strong>
+                        <a
+                            href="${url.short_url}"
+                            target="_blank"
+                        >
+                            ${url.short_code}
+                        </a>
+                    </strong>
+
+                    <p>
+                        ${url.original_url}
+                    </p>
+
+                    <span>
+                        Clicks: ${url.clicks}
+                    </span>
+
+                    <span>
+                        Expires:
+                        ${
+                            url.expires_at
+                                ? new Date(
+                                    url.expires_at
+                                ).toLocaleString()
+                                : "Never"
+                        }
+                    </span>
+
+                </div>
+
+                <div class="url-actions">
+
+                    <button
+                        onclick="copyURL('${url.short_url}')"
+                    >
+                        Copy
+                    </button>
+
+                    <button
+                        onclick="showQRCode(
+                            '${url.short_url}',
+                            '${url.short_code}'
+                        )"
+                    >
+                        QR Code
+                    </button>
+
                     <a
-                        href="${url.short_url}"
+                        href="/analytics/${url.short_code}"
                         target="_blank"
                     >
-                        ${url.short_code}
+                        Analytics
                     </a>
-                </strong>
 
-                <p>
-                    ${url.original_url}
-                </p>
+                    <button
+                        onclick="deleteURL('${url.short_code}')"
+                    >
+                        Delete
+                    </button>
 
-                <span>
-                    Clicks: ${url.clicks}
-                </span>
+                </div>
 
-                <span>
-                    Expires:
-                    ${
-                        url.expires_at
-                            ? new Date(
-                                url.expires_at
-                            ).toLocaleString()
-                            : "Never"
-                    }
-                </span>
+                <div
+                    id="qr-${url.short_code}"
+                    class="qr-container"
+                ></div>
 
             </div>
-
-
-            <div class="url-actions">
-
-                <button
-                    onclick="copyURL('${url.short_url}')"
-                >
-                    Copy
-                </button>
-
-
-                <button
-                    onclick="showQRCode(
-                        '${url.short_url}',
-                        '${url.short_code}'
-                    )"
-                >
-                    QR Code
-                </button>
-
-
-                <a
-                    href="/analytics/${url.short_code}"
-                    target="_blank"
-                >
-                    Analytics
-                </a>
-
-
-                <button
-                    onclick="deleteURL('${url.short_code}')"
-                >
-                    Delete
-                </button>
-
-            </div>
-
-
-            <div
-                id="qr-${url.short_code}"
-                class="qr-container"
-            ></div>
-
-        </div>
-    `).join("");
+        `)
+        .join("");
 
     updatePagination(data);
 }
-
 
 function updatePagination(data) {
     const pagination =
@@ -264,17 +359,23 @@ function updatePagination(data) {
         return;
     }
 
-    if (data.total_pages <= 1) {
+    const totalPages =
+        data.total_pages || 1;
+
+    const currentPage =
+        data.page || 1;
+
+    if (totalPages <= 1) {
         pagination.innerHTML = "";
         return;
     }
 
     let buttons = "";
 
-    if (data.page > 1) {
+    if (currentPage > 1) {
         buttons += `
             <button
-                onclick="loadURLs(${data.page - 1})"
+                onclick="loadURLs(${currentPage - 1})"
             >
                 Previous
             </button>
@@ -283,13 +384,13 @@ function updatePagination(data) {
 
     for (
         let page = 1;
-        page <= data.total_pages;
+        page <= totalPages;
         page++
     ) {
         buttons += `
             <button
                 class="${
-                    page === data.page
+                    page === currentPage
                         ? "active-page"
                         : ""
                 }"
@@ -300,10 +401,10 @@ function updatePagination(data) {
         `;
     }
 
-    if (data.page < data.total_pages) {
+    if (currentPage < totalPages) {
         buttons += `
             <button
-                onclick="loadURLs(${data.page + 1})"
+                onclick="loadURLs(${currentPage + 1})"
             >
                 Next
             </button>
@@ -312,7 +413,6 @@ function updatePagination(data) {
 
     pagination.innerHTML = buttons;
 }
-
 
 async function deleteURL(shortCode) {
     const confirmed = confirm(
@@ -327,9 +427,14 @@ async function deleteURL(shortCode) {
         const response = await fetch(
             `/api/urls/${shortCode}`,
             {
-                method: "DELETE"
+                method: "DELETE",
+                headers: getAuthHeaders()
             }
         );
+
+        if (handleUnauthorized(response)) {
+            return;
+        }
 
         const data = await response.json();
 
@@ -345,7 +450,6 @@ async function deleteURL(shortCode) {
         alert("URL deleted successfully.");
 
         loadURLs();
-
     } catch (error) {
         alert(
             "Unable to connect to the server."
@@ -354,7 +458,6 @@ async function deleteURL(shortCode) {
         console.error(error);
     }
 }
-
 
 function copyURL(url) {
     navigator.clipboard
@@ -367,7 +470,6 @@ function copyURL(url) {
         });
 }
 
-
 function showQRCode(
     shortUrl,
     shortCode,
@@ -377,7 +479,9 @@ function showQRCode(
 
     if (location === "new") {
         container =
-            document.getElementById("new-qr-container");
+            document.getElementById(
+                "new-qr-container"
+            );
     } else {
         container =
             document.getElementById(
@@ -389,7 +493,9 @@ function showQRCode(
         return;
     }
 
-    if (container.innerHTML.trim() !== "") {
+    if (
+        container.innerHTML.trim() !== ""
+    ) {
         container.innerHTML = "";
         return;
     }
@@ -424,9 +530,7 @@ function showQRCode(
     `;
 }
 
-
 let searchTimeout;
-
 
 function searchURLs() {
     clearTimeout(searchTimeout);
@@ -436,10 +540,26 @@ function searchURLs() {
     }, 300);
 }
 
+window.logout = logout;
+window.shortenURL = shortenURL;
+window.loadURLs = loadURLs;
+window.deleteURL = deleteURL;
+window.copyURL = copyURL;
+window.showQRCode = showQRCode;
+window.searchURLs = searchURLs;
 
 window.addEventListener(
     "DOMContentLoaded",
-    () => {
+    async () => {
+        setupLogout();
+
+        const authenticated =
+            await verifyUser();
+
+        if (!authenticated) {
+            return;
+        }
+
         loadURLs();
     }
 );
