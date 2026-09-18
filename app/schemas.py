@@ -1,15 +1,50 @@
 from datetime import datetime
 
-from pydantic import BaseModel, HttpUrl
+from pydantic import BaseModel, EmailStr, Field, HttpUrl, field_validator
 
 
 class URLCreate(BaseModel):
 
     original_url: HttpUrl
 
-    custom_code: str | None = None
+    custom_code: str | None = Field(
+        default=None,
+        min_length=3,
+        max_length=50
+    )
 
     expires_at: datetime | None = None
+
+    @field_validator("custom_code")
+    @classmethod
+    def validate_custom_code(cls, value):
+        if value is None:
+            return None
+
+        value = value.strip()
+
+        if not value:
+            return None
+
+        if not value.replace("_", "").replace("-", "").isalnum():
+            raise ValueError(
+                "Custom code can only contain letters, numbers, hyphens, and underscores"
+            )
+
+        return value
+
+    @field_validator("expires_at")
+    @classmethod
+    def validate_expiration(cls, value):
+        if value is None:
+            return None
+
+        if value <= datetime.now(value.tzinfo):
+            raise ValueError(
+                "Expiration date must be in the future"
+            )
+
+        return value
 
 
 class ClickResponse(BaseModel):
@@ -84,18 +119,39 @@ class AnalyticsResponse(BaseModel):
 
 class UserRegister(BaseModel):
 
-    name: str
+    name: str = Field(
+        min_length=2,
+        max_length=100
+    )
 
-    email: str
+    email: EmailStr
 
-    password: str
+    password: str = Field(
+        min_length=6,
+        max_length=100
+    )
+
+    @field_validator("name")
+    @classmethod
+    def validate_name(cls, value):
+        value = value.strip()
+
+        if not value:
+            raise ValueError(
+                "Name cannot be empty"
+            )
+
+        return value
 
 
 class UserLogin(BaseModel):
 
-    email: str
+    email: EmailStr
 
-    password: str
+    password: str = Field(
+        min_length=1,
+        max_length=100
+    )
 
 
 class UserResponse(BaseModel):
